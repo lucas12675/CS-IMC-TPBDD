@@ -32,9 +32,9 @@ with pyodbc.connect('DRIVER='+driver+';SERVER=tcp:'+server+';PORT=1433;DATABASE=
 
     # Films
     exportedCount = 0
-    cursor.execute("SELECT COUNT(1) FROM TFilm")
+    cursor.execute("SELECT COUNT(1) FROM tFilm")
     totalCount = cursor.fetchval()
-    cursor.execute("SELECT idFilm, primaryTitle, startYear FROM TFilm")
+    cursor.execute("SELECT idFilm, primaryTitle, startYear FROM tFilm")
     while True:
         importData = []
         rows = cursor.fetchmany(BATCH_SIZE)
@@ -45,6 +45,7 @@ with pyodbc.connect('DRIVER='+driver+';SERVER=tcp:'+server+';PORT=1433;DATABASE=
         for row in rows:
             # Créer un objet Node avec comme label Film et les propriétés adéquates
             # A COMPLETER
+            n = Node("Film", idFilm=row.idFilm, primaryTitle=row.primaryTitle, startYear=row.startYear)
             importData.append(n)
             i += 1
 
@@ -57,13 +58,36 @@ with pyodbc.connect('DRIVER='+driver+';SERVER=tcp:'+server+';PORT=1433;DATABASE=
 
     # Names
     # En vous basant sur ce qui a été fait dans la section précédente, exportez les données de la table tArtist
-    # A COMPLETER
+    exportedCount = 0
+    cursor.execute("SELECT COUNT(1) FROM tArtist")
+    totalCount = cursor.fetchval()
+    cursor.execute("SELECT idArtist, primaryName, birthYear FROM tArtist")
+    while True:
+        importData = []
+        rows = cursor.fetchmany(BATCH_SIZE)
+        if not rows:
+            break
+
+        i = 0
+        for row in rows:
+            # Créer un objet Node avec comme label Film et les propriétés adéquates
+            Node("Artist", idArtist=row.idArtist, primaryName=row.primaryName, birthYear=int(row.birthYear) if row.birthYear else None)
+
+            importData.append(n)
+            i += 1
+
+        try:
+            create_nodes(graph.auto(), importData, labels={"Artist"})
+            exportedCount += len(rows)
+            print(f"{exportedCount}/{totalCount} artist records exported to Neo4j")
+        except Exception as error:
+            print(error)
 
     try:
         print("Indexing Film nodes...")
-        graph.run("CREATE INDEX ON :Film(idFilm)")
+        graph.run("CREATE INDEX film_id_index IF NOT EXISTS FOR (f:Film) ON (f.idFilm);")
         print("Indexing Name (Artist) nodes...")
-        graph.run("CREATE INDEX ON :Artist(idArtist)")
+        graph.run("CREATE INDEX artist_id_index IF NOT EXISTS FOR (a:Artist) ON (a.idArtist); ")
     except Exception as error:
         print(error)
 
