@@ -1,10 +1,6 @@
 # TP BDD
-## Setup env 
-export env variable
-
-export $(cat .env | xargs) && env
-
-export one by one the env variables
+Dans ce TP nous aborderons la gestion de base de données en utilisant diférentes représentation des données. 
+Notamment SQL, Neo4J et Gremlin
 
 ## Request database
 
