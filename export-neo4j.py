@@ -68,13 +68,15 @@ with pyodbc.connect('DRIVER='+driver+';SERVER=tcp:'+server+';PORT=1433;DATABASE=
         if not rows:
             break
 
-        i = 0
         for row in rows:
-            # Créer un objet Node avec comme label Film et les propriétés adéquates
-            Node("Artist", idArtist=row.idArtist, primaryName=row.primaryName, birthYear=int(row.birthYear) if row.birthYear else None)
-
+            # Créer un objet Node avec label Artist et propriétés adéquates
+            n = Node(
+                "Artist",
+                idArtist=row.idArtist,
+                primaryName=row.primaryName,
+                birthYear=int(row.birthYear) if row.birthYear is not None else None
+            )
             importData.append(n)
-            i += 1
 
         try:
             create_nodes(graph.auto(), importData, labels={"Artist"})
@@ -82,15 +84,6 @@ with pyodbc.connect('DRIVER='+driver+';SERVER=tcp:'+server+';PORT=1433;DATABASE=
             print(f"{exportedCount}/{totalCount} artist records exported to Neo4j")
         except Exception as error:
             print(error)
-
-    try:
-        print("Indexing Film nodes...")
-        graph.run("CREATE INDEX film_id_index IF NOT EXISTS FOR (f:Film) ON (f.idFilm);")
-        print("Indexing Name (Artist) nodes...")
-        graph.run("CREATE INDEX artist_id_index IF NOT EXISTS FOR (a:Artist) ON (a.idArtist); ")
-    except Exception as error:
-        print(error)
-
 
     # Relationships
     exportedCount = 0
@@ -104,18 +97,26 @@ with pyodbc.connect('DRIVER='+driver+';SERVER=tcp:'+server+';PORT=1433;DATABASE=
             break
 
         for row in rows:
-            relTuple=(row[0], {}, row[2])
-            importData[row[1]].append(relTuple)
+            # tuple = (start_node_key, properties_dict, end_node_key)
+            # start: idArtist, end: idFilm
+            relTuple = (row.idArtist, {}, row.idFilm)
+            importData[row.category].append(relTuple)
 
         try:
             for cat in importData:
-                # Utilisez la fonction create_relationships de py2neo pour créer les relations entre les noeuds Film et Name
-                # (les tuples nécessaires ont déjà été créés ci-dessus dans la boucle for précédente)
-                # https://py2neo.org/2021.1/bulk/index.html
-                # ATTENTION: remplacez les espaces par des _ pour nommer les types de relation
-                # A COMPLETER
-                r= create_relationships(graph.auto(),cat)
-                None # Remplacez None par votre code
+
+                # Remplacer les espaces par des _ pour le type de relation
+                rel_type = cat.replace(" ", "_").upper()
+
+                create_relationships(
+                    graph.auto(),
+                    importData[cat],
+                    rel_type,
+                    start_node_key=("Artist", "idArtist"),
+                    end_node_key=("Film", "idFilm"),
+                )
+                
+
             exportedCount += len(rows)
             print(f"{exportedCount}/{totalCount} relationships exported to Neo4j")
         except Exception as error:
